@@ -10,6 +10,7 @@ void Server(int port);
 void Send(std::string message, const std::string& serverAddress, int port);
 int GetLocalIPAddressToDefinePort_CustomCode(std::string IpAdressToSend);
 void MessageReceive(const std::string& text);
+std::string GetLocalIPAddress();
 
 std::string UserName;
 
@@ -148,7 +149,7 @@ void Send(std::string message, const std::string& serverAddress, int port) {
 
 
 int GetLocalIPAddressToDefinePort_CustomCode(std::string IpAdressToSend) {
-    if (IpAdressToSend != "127.0.0.1")
+    if (IpAdressToSend != "127.0.0.1" || IpAdressToSend == GetLocalIPAddress())
     {
         WSADATA wsaData;
         char hostname[256];
@@ -222,4 +223,31 @@ void MessageReceive(const std::string& text) {
 
     // Réinitialiser la couleur
     SetConsoleTextAttribute(hConsole, FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE);
+}
+
+std::string GetLocalIPAddress() {
+    WSADATA wsaData;
+    char hostname[256];
+
+    if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
+        return "WSAStartup failed";
+    }
+
+    if (gethostname(hostname, sizeof(hostname)) == SOCKET_ERROR) {
+        WSACleanup();
+        return "Error getting hostname";
+    }
+
+    struct hostent* host = gethostbyname(hostname);
+    if (host == nullptr) {
+        WSACleanup();
+        return "Error getting host info";
+    }
+
+    struct in_addr addr;
+    memcpy(&addr, host->h_addr_list[0], sizeof(struct in_addr));
+    std::string ip = inet_ntoa(addr);
+
+    WSACleanup();
+    return ip;
 }
