@@ -8,19 +8,22 @@
 void HandleClient(SOCKET clientSocket);
 void Server(int port);
 void Send(std::string message, const std::string& serverAddress, int port);
+int GetLocalIPAddressToDefinePort_CustomCode(std::string IpAdressToSend);
+void MessageReceive(const std::string& text);
 
 int main() {
-    const std::string IpAdressToSend = "127.0.0.1"; // Sa propre adresse. Équivalent à "localhost"
-    const int port = 8080; // Le port à utiliser pour communiquer
+    std::string IpAdressToSend; // Sa propre adresse. Équivalent à "localhost"
+	std::cout << "IPv4 address of the receiver : "; std::cin >> IpAdressToSend;
+    const int port = GetLocalIPAddressToDefinePort_CustomCode(IpAdressToSend); // Le port à utiliser pour communiquer
 
     std::thread serverThread(Server, port); // Le serveur écoute activement et est donc blocant.
                                             //On le met dans un thread pour pouvoir continuer à faire autre chose
     do
     {
         std::this_thread::sleep_for(std::chrono::milliseconds(1000)); // On laisse le temps au serveur de s'initialiser et d'écouter avant de lui envoyer un message
-	    std::cout << "Message : "; std::string message; std::cin >> message;
-		if (message == "exit") return 0; // On sort de la boucle si le message est "exit"
-        Send(message, IpAdressToSend, port); // On envoi le message "Hello world" au serveur, qui va l'afficher dans la console à la réception
+        std::cout << "Message : "; std::string _message; std::cin >> _message;
+		if (_message == ".exit") return 0; // On sort de la boucle si le message est "exit"
+        Send(_message, IpAdressToSend, port); // On envoi le message "Hello world" au serveur, qui va l'afficher dans la console à la réception
     } while (true);
 
     serverThread.join(); // On attends que le serveur arrête avant de fermer le programme. Ici ça n'arrivera jamais vu qu'il écoute indéfiniment
@@ -41,7 +44,7 @@ void HandleClient(SOCKET clientSocket) {
             closesocket(clientSocket);
             return;
         }
-        std::cout << "Voici ce que nous avons recu via le reseau : " << std::string(buffer, bytesReceived) << std::endl;
+        MessageReceive(std::string(buffer, bytesReceived));
     }
 }
 
@@ -137,4 +140,83 @@ void Send(std::string message, const std::string& serverAddress, int port) {
 
     closesocket(clientSocket);
     WSACleanup();
+}
+
+
+
+int GetLocalIPAddressToDefinePort_CustomCode(std::string IpAdressToSend) {
+    if (IpAdressToSend != "127.0.0.1")
+    {
+        WSADATA wsaData;
+        char hostname[256];
+
+        if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
+            std::cout << "WSAStartup failed" << std::endl;
+            return 7;
+        }
+
+        if (gethostname(hostname, sizeof(hostname)) == SOCKET_ERROR) {
+            WSACleanup();
+            std::cout << "Error getting hostname" << std::endl;
+            return 7;
+        }
+
+        struct addrinfo hints = {};
+        struct addrinfo* result = nullptr;
+
+        hints.ai_family = AF_INET; // IPv4
+        hints.ai_socktype = SOCK_STREAM; // Stream socket
+        hints.ai_protocol = IPPROTO_TCP; // TCP protocol
+
+        if (getaddrinfo(hostname, nullptr, &hints, &result) != 0) {
+            WSACleanup();
+            std::cout << "Error getting address info" << std::endl;
+            return 7;
+        }
+
+        struct sockaddr_in* addr = reinterpret_cast<struct sockaddr_in*>(result->ai_addr);
+        char ip[INET_ADDRSTRLEN]; // Buffer to store the IP address as a string
+
+        // Use inet_ntop instead of inet_ntoa
+        if (inet_ntop(AF_INET, &(addr->sin_addr), ip, INET_ADDRSTRLEN) == nullptr) {
+            freeaddrinfo(result);
+            WSACleanup();
+            std::cout << "Error converting IP address" << std::endl;
+            return 7;
+        }
+
+        std::string ipStr(ip);
+
+        freeaddrinfo(result);
+        WSACleanup();
+
+        if (ipStr > IpAdressToSend) {
+            return 8081;
+        }
+    }
+    return 8080;
+}
+
+void MessageReceive(const std::string& text) {
+    // Obtenir la taille de la console
+    CONSOLE_SCREEN_BUFFER_INFO csbi;
+    int consoleWidth = 80; // Valeur par défaut
+
+    HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+    if (GetConsoleScreenBufferInfo(hConsole, &csbi)) {
+        consoleWidth = csbi.dwSize.X;
+    }
+
+    // Calculer l'indentation pour aligner à droite
+    int padding = consoleWidth - static_cast<int>(text.length());
+    if (padding < 0) padding = 0;
+
+    // Appliquer la couleur (vert clair)
+    SetConsoleTextAttribute(hConsole, FOREGROUND_GREEN | FOREGROUND_INTENSITY);
+
+    // Afficher l'espace vide puis le texte
+    std::cout << std::string(padding, ' ') << text << std::endl;
+
+    // Réinitialiser la couleur
+    SetConsoleTextAttribute(hConsole, FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE);
 }
