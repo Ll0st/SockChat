@@ -238,16 +238,31 @@ std::string GetLocalIPAddress() {
         return "Error getting hostname";
     }
 
-    struct hostent* host = gethostbyname(hostname);
-    if (host == nullptr) {
+    struct addrinfo hints = {};
+    struct addrinfo* result = nullptr;
+
+    hints.ai_family = AF_INET; // IPv4
+    hints.ai_socktype = SOCK_STREAM; // Stream socket
+    hints.ai_protocol = IPPROTO_TCP; // TCP protocol
+
+    if (getaddrinfo(hostname, nullptr, &hints, &result) != 0) {
         WSACleanup();
-        return "Error getting host info";
+        return "Error getting address info";
     }
 
-    struct in_addr addr;
-    memcpy(&addr, host->h_addr_list[0], sizeof(struct in_addr));
-    std::string ip = inet_ntoa(addr);
+    struct sockaddr_in* addr = reinterpret_cast<struct sockaddr_in*>(result->ai_addr);
+    char ip[INET_ADDRSTRLEN]; // Buffer to store the IP address as a string
 
+    if (inet_ntop(AF_INET, &(addr->sin_addr), ip, INET_ADDRSTRLEN) == nullptr) {
+        freeaddrinfo(result);
+        WSACleanup();
+        return "Error converting IP address";
+    }
+
+    std::string ipStr(ip);
+
+    freeaddrinfo(result);
     WSACleanup();
-    return ip;
+
+    return ipStr;
 }
