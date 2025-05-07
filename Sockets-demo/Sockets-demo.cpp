@@ -11,18 +11,24 @@ void Send(std::string message, const std::string& serverAddress, int port);
 int GetLocalIPAddressToDefinePort_CustomCode(std::string IpAdressToSend);
 void MessageReceive(const std::string& text);
 
+std::string UserName;
+
 int main() {
+	std::cout << "Enter your username: "; std::cin >> UserName;
     std::string IpAdressToSend; // Sa propre adresse. Équivalent à "localhost"
 	std::cout << "IPv4 address of the receiver : "; std::cin >> IpAdressToSend;
     const int port = GetLocalIPAddressToDefinePort_CustomCode(IpAdressToSend); // Le port à utiliser pour communiquer
+
+    system("cls"); // Clears the console
 
     std::thread serverThread(Server, port); // Le serveur écoute activement et est donc blocant.
                                             //On le met dans un thread pour pouvoir continuer à faire autre chose
     do
     {
         std::this_thread::sleep_for(std::chrono::milliseconds(1000)); // On laisse le temps au serveur de s'initialiser et d'écouter avant de lui envoyer un message
-        std::cout << "Message : "; std::string _message; std::cin >> _message;
+        std::cout << "[" << UserName << "] "; std::string _message; std::cin >> _message;
 		if (_message == ".exit") return 0; // On sort de la boucle si le message est "exit"
+		_message = _message + " [" + UserName + "]"; // On ajoute le nom d'utilisateur au message
         Send(_message, IpAdressToSend, port); // On envoi le message "Hello world" au serveur, qui va l'afficher dans la console à la réception
     } while (true);
 
@@ -40,7 +46,6 @@ void HandleClient(SOCKET clientSocket) {
             return;
         }
         else if (bytesReceived == 0) {
-            std::cout << "Client deconnecte" << std::endl;
             closesocket(clientSocket);
             return;
         }
@@ -127,8 +132,6 @@ void Send(std::string message, const std::string& serverAddress, int port) {
         WSACleanup();
         return;
     }
-
-    std::cout << "Connecte au serveur" << std::endl;
 
     char buffer[1024];
     if (send(clientSocket, message.c_str(), message.length(), 0) == SOCKET_ERROR) {
