@@ -19,7 +19,7 @@ int main() {
 	std::cout << "IPv4 address of the receiver : "; std::cin >> IpAdressToSend;
     const int port = GetLocalIPAddressToDefinePort_CustomCode(IpAdressToSend); // Le port à utiliser pour communiquer
 
-    system("cls"); // Clears the console
+    system("cls");
 
     std::thread serverThread(Server, port); // Le serveur écoute activement et est donc blocant.
                                             //On le met dans un thread pour pouvoir continuer à faire autre chose
